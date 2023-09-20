@@ -1,26 +1,29 @@
-FROM mariadb:latest
-RUN ["sed", "-i", "s/exec \"$@\"/echo \"not running $@\"/", "/usr/local/bin/docker-entrypoint.sh"]
-
-ENV MYSQL_ROOT_PASSWORD=root
-ENV MYSQL_ROOT_PASSWORD = pwd
-ENV MYSQL_DATABASE = test_data
-ENV MYSQL_USER = user
-ENV MYSQL_PASSWORD = password
-
-COPY sql/data.sql /docker-entrypoint-initdb.d/
-
-RUN ["/usr/local/bin/docker-entrypoint.sh", "mysqld", "--datadir", "/initialized-db", "--aria-log-dir-path", "/initialized-db"]
-
+# Getting base image from DockerHub
+# https://hub.docker.com/_/mariadb
 FROM mariadb:latest
 
-ENV MARIADB_ROOT_PASSWORD=root
-ENV MARIADB_ROOT_PASSWORD = pwd
-ENV MARIADB_DATABASE = audio_service
-ENV MARIADB_USER = user
-ENV MARIADB_PASSWORD = password
+# Run Update and Clean image
+RUN apt-get update \
+ && apt-get upgrade -y --force-yes -o Dpkg::Options::="--force-confnew" --no-install-recommends \
+ && apt-get autoremove \
+ && apt-get clean -y \
+ && rm -rf /tmp/* \
+ && rm -rf /var/tmp/* \
+ && for logs in `find /var/log -type f`; do > $logs; done \
+ && rm -rf /usr/share/locale/* \
+ && rm -rf /usr/share/man/* \
+ && rm -rf /usr/share/doc/* \
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -f /var/cache/apt/*.bin
 
+ # Adding setup file
+ADD init/ /
 
-## Do not work 
-##COPY --from=builder /initialized-db /var/lib/mysql
+# This wil fix permissions on folder/fil
+RUN chmod +x /usr/local/bin/* \
+    && chmod 777 /usr/local/bin/*
 
-EXPOSE 3306
+RUN cd /tmp \
+    && touch test.txt
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
